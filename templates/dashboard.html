@@ -1,0 +1,53 @@
+
+{% extends "base.html" %}
+
+{% block title %}Dashboard | SmartCare{% endblock %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <p class="eyebrow">HEALTHCARE MANAGEMENT</p>
+        <h1>Dashboard</h1>
+        <p class="muted">Welcome to Smart Health Care System.</p>
+    </div>
+    <span class="status-badge">● System Overview</span>
+</header>
+
+<section class="stats-grid">
+    <article class="stat-card">
+        <p>Total Patients</p>
+        <h2>{{ stats.total_patients }}</h2>
+        <span>Registered patients</span>
+    </article>
+
+    <article class="stat-card">
+        <p>Total Doctors</p>
+        <h2>{{ stats.total_doctors }}</h2>
+        <span>Available records</span>
+    </article>
+
+    <article class="stat-card">
+        <p>Appointments</p>
+        <h2>{{ stats.total_appointments }}</h2>
+        <span>All bookings</span>
+    </article>
+
+    <article class="stat-card">
+        <p>Pending</p>
+        <h2>{{ stats.pending_appointments }}</h2>
+        <span>Awaiting confirmation</span>
+    </article>
+</section>
+
+<section class="welcome-card">
+    <div>
+        <p class="eyebrow">QUICK ACCESS</p>
+        <h2>Manage healthcare in one place</h2>
+        <p class="muted">
+            Manage patient records, doctors and appointments
+            using the navigation menu.
+        </p>
+    </div>
+    <div class="welcome-icon">✚</div>
+</section>
+{% endblock %}

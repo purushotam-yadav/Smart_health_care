@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1>Appointments Management</h1>
+    <p>Book and manage patient appointments.</p>
+</div>
+
+{% if message %}
+<div class="message {{ message_type }}">
+    {{ message }}
+</div>
+{% endif %}
+
+<div class="patient-layout">
+
+    <!-- Book Appointment Form -->
+    <section class="panel">
+        <h2>Book New Appointment</h2>
+
+        <form method="POST" action="{{ url_for('appointments_page') }}">
+
+            <label for="patient_id">Select Patient *</label>
+            <select id="patient_id" name="patient_id" required>
+                <option value="">Choose patient</option>
+                {% for patient in patients %}
+                <option value="{{ patient.patient_id }}">
+                    {{ patient.full_name }} (ID: {{ patient.patient_id }})
+                </option>
+                {% endfor %}
+            </select>
+
+            <label for="doctor_id">Select Doctor *</label>
+            <select id="doctor_id" name="doctor_id" required>
+                <option value="">Choose doctor</option>
+                {% for doctor in doctors %}
+                <option value="{{ doctor.doctor_id }}">
+                    {{ doctor.full_name }} — {{ doctor.specialization }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <label for="appointment_date">Appointment Date *</label>
+            <input
+                type="date"
+                id="appointment_date"
+                name="appointment_date"
+                required
+            >
+
+            <label for="appointment_time">Appointment Time *</label>
+            <input
+                type="time"
+                id="appointment_time"
+                name="appointment_time"
+                required
+            >
+
+            <label for="reason">Reason for Visit</label>
+            <textarea
+                id="reason"
+                name="reason"
+                rows="3"
+                placeholder="Describe the reason for visit"
+            ></textarea>
+
+            <button
+                type="submit"
+                class="primary-btn"
+                {% if not patients or not doctors %}disabled{% endif %}
+            >
+                Book Appointment
+            </button>
+
+            {% if not patients %}
+            <p class="form-note">Register a patient before booking.</p>
+            {% endif %}
+
+            {% if not doctors %}
+            <p class="form-note">No available doctors found.</p>
+            {% endif %}
+
+        </form>
+    </section>
+
+    <!--
+<!-- Appointments Table -->
+<section class="panel">
+    <h2>All Appointments</h2>
+
+    <form method="GET"
+          action="{{ url_for('appointments_page') }}"
+          class="patient-search-form">
+
+        <input
+            type="search"
+            name="q"
+            value="{{ search }}"
+            placeholder="Search patient, doctor or reason"
+            aria-label="Search appointments"
+        >
+
+        <select name="status" aria-label="Filter by status">
+            <option value="">All Statuses</option>
+            {% for status in ['Pending', 'Confirmed', 'Completed', 'Cancelled'] %}
+            <option value="{{ status }}"
+                {% if status_filter == status %}selected{% endif %}>
+                {{ status }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <button type="submit" class="primary-btn">
+            Search / Filter
+        </button>
+
+        <a href="{{ url_for('appointments_page') }}">Clear</a>
+    </form>
+
+    <p class="record-count">
+        Matching appointments: {{ total_appointments }}
+    </p>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Patient</th>
+                    <th>Doctor</th>
+                    <th>Specialization</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for appointment in appointments %}
+                <tr>
+                    <td>{{ appointment.appointment_id }}</td>
+                    <td>
+                        {{ appointment.patients.full_name
+                           if appointment.patients else 'Unknown' }}
+                    </td>
+                    <td>
+                        {{ appointment.doctors.full_name
+                           if appointment.doctors else 'Unknown' }}
+                    </td>
+                    <td>
+                        {{ appointment.doctors.specialization
+                           if appointment.doctors else '-' }}
+                    </td>
+                    <td>{{ appointment.appointment_date }}</td>
+                    <td>{{ appointment.appointment_time }}</td>
+                    <td>{{ appointment.reason or '-' }}</td>
+                    <td>
+                        <span class="appointment-status">
+                            {{ appointment.status }}
+                        </span>
+                    </td>
+                    <td class="actions-cell">
+                        <a
+                            class="edit-btn"
+                            href="{{ url_for(
+                                'edit_appointment_page',
+                                appointment_id=appointment.appointment_id
+                            ) }}">
+                            Edit
+                        </a>
+
+                        <form
+                            method="POST"
+                            action="{{ url_for(
+                                'delete_appointment_page',
+                                appointment_id=appointment.appointment_id
+                            ) }}"
+                            onsubmit="return confirm('Delete this appointment?');">
+                            <button type="submit" class="delete-btn">
+                                Delete
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="9">No matching appointments found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination">
+        {% if page > 1 %}
+        <a href="{{ url_for(
+            'appointments_page',
+            q=search,
+            status=status_filter,
+            page=page-1
+        ) }}">← Previous</a>
+        {% else %}
+        <span class="pagination-disabled">← Previous</span>
+        {% endif %}
+
+        <span>Page {{ page }} of {{ total_pages }}</span>
+
+        {% if page < total_pages %}
+        <a href="{{ url_for(
+            'appointments_page',
+            q=search,
+            status=status_filter,
+            page=page+1
+        ) }}">Next →</a>
+        {% else %}
+        <span class="pagination-disabled">Next →</span>
+        {% endif %}
+    </div>
+</section>
+
+
+</div>
+
+{% endblock %}

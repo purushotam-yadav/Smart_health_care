@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1>Edit Appointment</h1>
+    <p>Update appointment details and status.</p>
+</div>
+
+{% if message %}
+<div class="message {{ message_type }}">
+    {{ message }}
+</div>
+{% endif %}
+
+<section class="panel edit-panel">
+    <form method="POST"
+          action="{{ url_for(
+              'edit_appointment_page',
+              appointment_id=appointment.appointment_id
+          ) }}">
+
+        <label for="patient_id">Patient *</label>
+        <select id="patient_id" name="patient_id" required>
+            {% for patient in patients %}
+            <option value="{{ patient.patient_id }}"
+                {% if patient.patient_id == appointment.patient_id %}
+                selected
+                {% endif %}>
+                {{ patient.full_name }} (ID: {{ patient.patient_id }})
+            </option>
+            {% endfor %}
+        </select>
+
+        <label for="doctor_id">Doctor *</label>
+        <select id="doctor_id" name="doctor_id" required>
+            {% for doctor in doctors %}
+            <option value="{{ doctor.doctor_id }}"
+                {% if doctor.doctor_id == appointment.doctor_id %}
+                selected
+                {% endif %}>
+                {{ doctor.full_name }} — {{ doctor.specialization }}
+                {% if not doctor.available %}(Unavailable){% endif %}
+            </option>
+            {% endfor %}
+        </select>
+
+        <label for="appointment_date">Date *</label>
+        <input
+            type="date"
+            id="appointment_date"
+            name="appointment_date"
+            value="{{ appointment.appointment_date }}"
+            required
+        >
+
+        <label for="appointment_time">Time *</label>
+        <input
+            type="time"
+            id="appointment_time"
+            name="appointment_time"
+            value="{{ appointment.appointment_time }}"
+            required
+        >
+
+        <label for="reason">Reason</label>
+        <textarea
+            id="reason"
+            name="reason"
+            rows="3"
+        >{{ appointment.reason or '' }}</textarea>
+
+        <label for="status">Appointment Status</label>
+        <select id="status" name="status" required>
+            {% for item in ["Pending", "Confirmed", "Completed", "Cancelled"] %}
+            <option value="{{ item }}"
+                {% if item == appointment.status %}selected{% endif %}>
+                {{ item }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <button type="submit" class="primary-btn">
+            Save Changes
+        </button>
+
+        <a class="cancel-link" href="{{ url_for('appointments_page') }}">
+            Cancel
+        </a>
+    </form>
+</section>
+
+{% endblock %}

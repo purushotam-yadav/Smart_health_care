@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h1>Patients</h1>
+        <p>Manage patient records and registrations.</p>
+    </div>
+</div>
+
+{% if message %}
+<div class="message {{ message_type }}">
+    {{ message }}
+</div>
+{% endif %}
+
+<div class="patient-layout">
+
+    <!-- Registration Form -->
+    <section class="panel">
+        <h2>Register New Patient</h2>
+
+        <form method="POST" action="{{ url_for('patients_page') }}">
+
+            <label for="full_name">Full Name *</label>
+            <input
+                type="text"
+                id="full_name"
+                name="full_name"
+                maxlength="100"
+                required
+                placeholder="Enter patient name"
+            >
+
+            <label for="age">Age *</label>
+            <input
+                type="number"
+                id="age"
+                name="age"
+                min="0"
+                max="120"
+                required
+                placeholder="Enter age"
+            >
+
+            <label for="gender">Gender</label>
+            <select id="gender" name="gender">
+                <option value="">Select gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+            </select>
+
+            <label for="phone">Phone</label>
+            <input
+                type="tel"
+                id="phone"
+                name="phone"
+                maxlength="15"
+                placeholder="Enter phone number"
+            >
+
+            <label for="email">Email</label>
+            <input
+                type="email"
+                id="email"
+                name="email"
+                maxlength="100"
+                placeholder="Enter email address"
+            >
+
+            <button type="submit" class="primary-btn">
+                Register Patient
+            </button>
+
+        </form>
+    </section>
+
+    
+<!-- Patients Table -->
+<section class="panel">
+    <h2>Registered Patients</h2>
+
+    <!-- Search and Filter -->
+    <form method="GET" action="{{ url_for('patients_page') }}"
+          class="patient-search-form">
+
+        <label for="q">Search patient</label>
+        <input
+            type="search"
+            id="q"
+            name="q"
+            placeholder="Name, phone or email..."
+            value="{{ search }}"
+        >
+
+        <label for="gender-filter">Filter by gender</label>
+        <select id="gender-filter" name="gender">
+            <option value="">All Genders</option>
+            <option value="Male"
+                {% if gender_filter == 'Male' %}selected{% endif %}>
+                Male
+            </option>
+            <option value="Female"
+                {% if gender_filter == 'Female' %}selected{% endif %}>
+                Female
+            </option>
+            <option value="Other"
+                {% if gender_filter == 'Other' %}selected{% endif %}>
+                Other
+            </option>
+        </select>
+
+        <button type="submit" class="primary-btn">Search / Filter</button>
+
+        <a href="{{ url_for('patients_page') }}" class="cancel-link">
+            Clear
+        </a>
+    </form>
+
+    <p class="record-count">
+        Showing {{ patients|length }} of {{ total_patients }} matching patients
+    </p>
+
+    <!-- Patients table -->
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Age</th>
+                    <th>Gender</th>
+                    <th>Phone</th>
+                    <th>Email</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for patient in patients %}
+                <tr>
+                    <td>{{ patient.patient_id }}</td>
+                    <td>{{ patient.full_name }}</td>
+                    <td>{{ patient.age if patient.age is not none else '-' }}</td>
+                    <td>{{ patient.gender or '-' }}</td>
+                    <td>{{ patient.phone or '-' }}</td>
+                    <td>{{ patient.email or '-' }}</td>
+                    <td class="actions-cell">
+                        <a
+                            class="edit-btn"
+                            href="{{ url_for('edit_patient_page', patient_id=patient.patient_id) }}"
+                        >Edit</a>
+
+                        <form
+                            method="POST"
+                            action="{{ url_for('delete_patient_page', patient_id=patient.patient_id) }}"
+                            onsubmit="return confirm('Are you sure you want to delete this patient?');"
+                        >
+                            <button type="submit" class="delete-btn">
+                                Delete
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7">No matching patients found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination">
+        <span>Page {{ page }} of {{ total_pages }}</span>
+
+        {% if page > 1 %}
+        <a href="{{ url_for('patients_page', q=search, gender=gender_filter, page=page-1) }}">
+            &laquo; Previous
+        </a>
+        {% else %}
+        <span class="pagination-disabled">&laquo; Previous</span>
+        {% endif %}
+
+        {% if page < total_pages %}
+        <a href="{{ url_for('patients_page', q=search, gender=gender_filter, page=page+1) }}">
+            Next &raquo;
+        </a>
+        {% else %}
+        <span class="pagination-disabled">Next &raquo;</span>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

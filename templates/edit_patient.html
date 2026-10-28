@@ -1,0 +1,79 @@
+```html
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1>Edit Patient</h1>
+    <p>Update patient information.</p>
+</div>
+
+{% if message %}
+<div class="message {{ message_type }}">
+    {{ message }}
+</div>
+{% endif %}
+
+<section class="panel edit-panel">
+    <form method="POST"
+          action="{{ url_for('edit_patient_page', patient_id=patient.patient_id) }}">
+
+        <label for="full_name">Full Name *</label>
+        <input
+            id="full_name"
+            name="full_name"
+            type="text"
+            maxlength="100"
+            value="{{ patient.full_name or '' }}"
+            required
+        >
+
+        <label for="age">Age *</label>
+        <input
+            id="age"
+            name="age"
+            type="number"
+            min="0"
+            max="120"
+            value="{{ patient.age if patient.age is not none else '' }}"
+            required
+        >
+
+        <label for="gender">Gender</label>
+        <select id="gender" name="gender">
+            <option value="">Select gender</option>
+            <option value="Male" {% if patient.gender == 'Male' %}selected{% endif %}>Male</option>
+            <option value="Female" {% if patient.gender == 'Female' %}selected{% endif %}>Female</option>
+            <option value="Other" {% if patient.gender == 'Other' %}selected{% endif %}>Other</option>
+        </select>
+
+        <label for="phone">Phone</label>
+        <input
+            id="phone"
+            name="phone"
+            type="tel"
+            maxlength="15"
+            value="{{ patient.phone or '' }}"
+        >
+
+        <label for="email">Email</label>
+        <input
+            id="email"
+            name="email"
+            type="email"
+            maxlength="100"
+            value="{{ patient.email or '' }}"
+        >
+
+        <button type="submit" class="primary-btn">
+            Save Changes
+        </button>
+
+        <a class="cancel-link" href="{{ url_for('patients_page') }}">
+            Cancel
+        </a>
+    </form>
+</section>
+
+{% endblock %}
+```

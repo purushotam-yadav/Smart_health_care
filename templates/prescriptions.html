@@ -1,0 +1,593 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h1>Prescriptions & Medicines</h1>
+        <p>Create and manage patient prescriptions.</p>
+    </div>
+</div>
+
+{% if message %}
+<div class="message error">{{ message }}</div>
+{% endif %}
+
+<div class="patient-layout">
+
+    <!-- Create Prescription Form -->
+    <section class="panel">
+        <h2>Create Prescription</h2>
+
+        <div id="form-message" class="message" hidden></div>
+
+        <form id="prescription-form">
+
+            <label for="appointment_id">Select Appointment *</label>
+            <select id="appointment_id" name="appointment_id" required>
+                <option value="">Choose appointment</option>
+                {% for appointment in appointments %}
+                <option value="{{ appointment.appointment_id }}">
+                    Appointment #{{ appointment.appointment_id }}
+                    — {{ appointment.patients.full_name
+                        if appointment.patients else 'Unknown patient' }}
+                    — {{ appointment.doctors.full_name
+                        if appointment.doctors else 'Unknown doctor' }}
+                    — {{ appointment.appointment_date }}
+                    ({{ appointment.status }})
+                </option>
+                {% endfor %}
+            </select>
+
+            {% if not appointments %}
+            <p class="form-note">
+                No appointments available for a new prescription.
+                An appointment may already have a prescription.
+            </p>
+            {% endif %}
+
+            <label for="diagnosis">Diagnosis</label>
+            <textarea
+                id="diagnosis"
+                name="diagnosis"
+                rows="3"
+                maxlength="5000"
+                placeholder="Enter diagnosis"
+            ></textarea>
+
+            <label for="notes">Additional Notes</label>
+            <textarea
+                id="notes"
+                name="notes"
+                rows="2"
+                maxlength="5000"
+                placeholder="Additional instructions"
+            ></textarea>
+
+            <hr>
+
+            <h3>Medicines</h3>
+            <p class="form-note">
+                Medicine details should be entered according to
+                the treating doctor's prescription.
+            </p>
+
+            <div id="medicines-container"></div>
+
+            <button
+                type="button"
+                class="edit-btn"
+                id="add-medicine-btn"
+            >
+                + Add Medicine
+            </button>
+
+            <button
+                type="submit"
+                class="primary-btn"
+                id="save-prescription-btn"
+                {% if not appointments %}disabled{% endif %}
+            >
+                Save Prescription
+            </button>
+
+        </form>
+    </section>
+
+    <!-- Saved Prescriptions -->
+    <section class="panel">
+        <h2>Saved Prescriptions</h2>
+
+        <div class="prescription-filters">
+            <input
+                type="search"
+                id="prescription-search"
+                placeholder="Search patient, doctor or diagnosis"
+                aria-label="Search prescriptions"
+            >
+
+            <label for="prescription-date">Created on</label>
+            <input type="date" id="prescription-date">
+
+            <button type="button" class="edit-btn" id="clear-prescription-filters">
+                Clear Filters
+            </button>
+        </div>
+
+        <div id="prescriptions-message" class="form-note">
+            Loading prescriptions...
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Patient</th>
+                        <th>Doctor</th>
+                        <th>Diagnosis</th>
+                        <th>Medicines</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="prescriptions-table-body"></tbody>
+            </table>
+        </div>
+    </section>
+
+</div>
+
+<style>
+    .medicine-entry {
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 12px;
+        margin: 12px 0;
+    }
+
+    .medicine-entry h4 {
+        margin-top: 0;
+    }
+
+    .medicine-entry label {
+        display: block;
+        margin-top: 10px;
+    }
+
+    .medicine-entry input,
+    .medicine-entry textarea {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .remove-medicine-btn {
+        margin-top: 12px;
+    }
+
+    #prescription-form > button {
+        margin-top: 12px;
+    }
+
+    .prescription-filters {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+    }
+
+    .prescription-filters input {
+        padding: 6px;
+    }
+</style>
+
+<script>
+(function () {
+    const form = document.getElementById("prescription-form");
+    const container = document.getElementById("medicines-container");
+    const formMessage = document.getElementById("form-message");
+    const saveButton = document.getElementById("save-prescription-btn");
+    const listMessage = document.getElementById("prescriptions-message");
+    const tableBody = document.getElementById("prescriptions-table-body");
+
+    let allPrescriptions = [];
+
+    function showMessage(element, text, isError) {
+        element.textContent = text;
+        element.hidden = false;
+        element.className = isError ? "message error" : "message success";
+    }
+
+    function addCell(row, value) {
+        const cell = document.createElement("td");
+        cell.textContent = value == null || value === "" ? "-" : String(value);
+        row.appendChild(cell);
+    }
+
+    function renderPrescriptions() {
+        const search = document.getElementById("prescription-search")
+            .value.trim().toLowerCase();
+
+        const selectedDate = document.getElementById("prescription-date").value;
+
+        const filtered = allPrescriptions.filter(function (p) {
+            const patient = p.patients || {};
+            const doctor = p.doctors || {};
+
+            const searchable = [
+                patient.full_name || "",
+                doctor.full_name || "",
+                p.diagnosis || ""
+            ].join(" ").toLowerCase();
+
+            const createdDate = p.created_at
+                ? String(p.created_at).slice(0, 10)
+                : "";
+
+            return (!search || searchable.includes(search)) &&
+                   (!selectedDate || createdDate === selectedDate);
+        });
+
+        tableBody.replaceChildren();
+
+        listMessage.textContent =
+            "Showing " + filtered.length + " of " +
+            allPrescriptions.length + " prescriptions.";
+
+        if (filtered.length === 0) {
+            const row = document.createElement("tr");
+            const cell = document.createElement("td");
+            cell.colSpan = 7;
+            cell.textContent = "No matching prescriptions found.";
+            row.appendChild(cell);
+            tableBody.appendChild(row);
+            return;
+        }
+
+        filtered.forEach(function (p) {
+            const row = document.createElement("tr");
+            const patient = p.patients || {};
+            const doctor = p.doctors || {};
+            const medicines = p.prescription_medicines || [];
+
+            addCell(row, p.prescription_id);
+            addCell(row, patient.full_name);
+            addCell(row, doctor.full_name);
+            addCell(row, p.diagnosis);
+
+            const medicineCell = document.createElement("td");
+            medicineCell.textContent = medicines.length
+                ? medicines.map(function (m) {
+                    return m.medicine_name + " (" + m.dosage + ")";
+                }).join(", ")
+                : "No medicines";
+            row.appendChild(medicineCell);
+
+            addCell(
+                row,
+                p.created_at
+                    ? new Date(p.created_at).toLocaleString()
+                    : "-"
+            );
+
+            const actions = document.createElement("td");
+
+            const editButton = document.createElement("button");
+            editButton.type = "button";
+            editButton.className = "edit-btn";
+            editButton.textContent = "Edit";
+            editButton.addEventListener("click", function () {
+                editPrescription(p);
+            });
+
+            const deleteButton = document.createElement("button");
+            deleteButton.type = "button";
+            deleteButton.className = "delete-btn";
+            deleteButton.textContent = "Delete";
+            deleteButton.addEventListener("click", function () {
+                deletePrescription(p.prescription_id);
+            });
+
+            actions.append(editButton, deleteButton);
+            row.appendChild(actions);
+            tableBody.appendChild(row);
+        });
+    }
+
+    async function loadPrescriptions() {
+        try {
+            const response = await fetch("/prescriptions");
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || "Prescriptions load nahi hui.");
+            }
+
+            allPrescriptions = data.prescriptions || [];
+            renderPrescriptions();
+
+        } catch (error) {
+            listMessage.textContent =
+                error.message || "Prescriptions load nahi hui.";
+        }
+    }
+
+    async function editPrescription(p) {
+        const diagnosis = prompt(
+            "Diagnosis update karo:",
+            p.diagnosis || ""
+        );
+        if (diagnosis === null) return;
+
+        const notes = prompt(
+            "Additional notes update karo:",
+            p.notes || ""
+        );
+        if (notes === null) return;
+
+        const currentMedicines = p.prescription_medicines || [];
+        const updatedMedicines = [];
+
+        for (let i = 0; i < currentMedicines.length; i++) {
+            const m = currentMedicines[i];
+
+            const name = prompt("Medicine " + (i + 1) + " name:", m.medicine_name);
+            if (name === null) return;
+
+            const dosage = prompt("Dosage:", m.dosage);
+            if (dosage === null) return;
+
+            const frequency = prompt("Frequency:", m.frequency);
+            if (frequency === null) return;
+
+            const duration = prompt("Duration:", m.duration);
+            if (duration === null) return;
+
+            const instructions = prompt(
+                "Instructions:",
+                m.instructions || ""
+            );
+            if (instructions === null) return;
+
+            if (![name, dosage, frequency, duration].every(
+                value => value.trim()
+            )) {
+                alert("Medicine name, dosage, frequency aur duration required hain.");
+                return;
+            }
+
+            updatedMedicines.push({
+                medicine_name: name.trim(),
+                dosage: dosage.trim(),
+                frequency: frequency.trim(),
+                duration: duration.trim(),
+                instructions: instructions.trim()
+            });
+        }
+
+        if (updatedMedicines.length === 0) {
+            alert("Prescription mein medicine record nahi mila.");
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                "/prescriptions/" + p.prescription_id,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        diagnosis: diagnosis.trim(),
+                        notes: notes.trim(),
+                        medicines: updatedMedicines
+                    })
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || "Prescription update nahi hui.");
+            }
+
+            alert("Prescription successfully updated.");
+            await loadPrescriptions();
+
+        } catch (error) {
+            alert(error.message || "Update failed.");
+        }
+    }
+
+    async function deletePrescription(prescriptionId) {
+        if (!confirm(
+            "Kya tum prescription #" + prescriptionId +
+            " aur uski linked medicines delete karna chahte ho?"
+        )) {
+            return;
+        }
+
+        try {
+            const response = await fetch(
+                "/prescriptions/" + prescriptionId,
+                { method: "DELETE" }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || "Prescription delete nahi hui.");
+            }
+
+            alert("Prescription successfully deleted.");
+            await loadPrescriptions();
+
+        } catch (error) {
+            alert(error.message || "Delete failed.");
+        }
+    }
+
+    function addMedicine() {
+        const number = container.children.length + 1;
+        const card = document.createElement("div");
+        card.className = "medicine-entry";
+
+        const heading = document.createElement("h4");
+        heading.textContent = "Medicine " + number;
+        card.appendChild(heading);
+
+        const fields = [
+            { name: "medicine_name", label: "Medicine Name *", required: true, max: 150 },
+            { name: "dosage", label: "Dosage *", required: true, max: 100 },
+            { name: "frequency", label: "Frequency *", required: true, max: 100 },
+            { name: "duration", label: "Duration *", required: true, max: 100 },
+            { name: "instructions", label: "Instructions", required: false, max: 2000 }
+        ];
+
+        fields.forEach(function (field) {
+            const label = document.createElement("label");
+            label.textContent = field.label;
+
+            const input = document.createElement(
+                field.name === "instructions" ? "textarea" : "input"
+            );
+
+            input.name = field.name;
+            input.maxLength = field.max;
+            input.required = field.required;
+
+            if (field.name === "instructions") {
+                input.rows = 2;
+            } else {
+                input.type = "text";
+            }
+
+            label.appendChild(input);
+            card.appendChild(label);
+        });
+
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.className = "delete-btn remove-medicine-btn";
+        removeButton.textContent = "Remove Medicine";
+        removeButton.addEventListener("click", function () {
+            card.remove();
+            renumberMedicines();
+        });
+
+        card.appendChild(removeButton);
+        container.appendChild(card);
+    }
+
+    function renumberMedicines() {
+        Array.from(container.children).forEach(function (card, index) {
+            card.querySelector("h4").textContent = "Medicine " + (index + 1);
+        });
+    }
+
+    document.getElementById("prescription-search").addEventListener(
+        "input", renderPrescriptions
+    );
+
+    document.getElementById("prescription-date").addEventListener(
+        "change", renderPrescriptions
+    );
+
+    document.getElementById("clear-prescription-filters").addEventListener(
+        "click", function () {
+            document.getElementById("prescription-search").value = "";
+            document.getElementById("prescription-date").value = "";
+            renderPrescriptions();
+        }
+    );
+
+    document.getElementById("add-medicine-btn").addEventListener(
+        "click", addMedicine
+    );
+
+    form.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        if (!form.reportValidity()) {
+            return;
+        }
+
+        const medicineCards = Array.from(container.children);
+
+        if (medicineCards.length === 0) {
+            showMessage(
+                formMessage,
+                "Kam se kam ek medicine add karo.",
+                true
+            );
+            return;
+        }
+
+        const medicines = medicineCards.map(function (card) {
+            const getValue = function (name) {
+                return card.querySelector('[name="' + name + '"]').value.trim();
+            };
+
+            return {
+                medicine_name: getValue("medicine_name"),
+                dosage: getValue("dosage"),
+                frequency: getValue("frequency"),
+                duration: getValue("duration"),
+                instructions: getValue("instructions")
+            };
+        });
+
+        const payload = {
+            appointment_id: document.getElementById("appointment_id").value,
+            diagnosis: document.getElementById("diagnosis").value.trim(),
+            notes: document.getElementById("notes").value.trim(),
+            medicines: medicines
+        };
+
+        saveButton.disabled = true;
+        saveButton.textContent = "Saving...";
+
+        try {
+            const response = await fetch("/prescriptions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || "Prescription save nahi hui.");
+            }
+
+            showMessage(
+                formMessage,
+                "Prescription successfully saved! ID: " +
+                    data.prescription_id,
+                false
+            );
+
+            form.reset();
+            container.replaceChildren();
+
+            await loadPrescriptions();
+            window.location.reload();
+
+        } catch (error) {
+            showMessage(
+                formMessage,
+                error.message || "Prescription save nahi hui.",
+                true
+            );
+        } finally {
+            saveButton.disabled = false;
+            saveButton.textContent = "Save Prescription";
+        }
+    });
+
+    addMedicine();
+    loadPrescriptions();
+})();
+</script>
+
+{% endblock %}
